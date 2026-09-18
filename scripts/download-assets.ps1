@@ -1,4 +1,4 @@
-# download-assets.ps1 — 从 GitHub Release 下载前端所需的音频和数据文件 (Windows)
+﻿# download-assets.ps1 — 从 GitHub Release 下载前端所需的音频和数据文件 (Windows)
 #
 # 用法:
 #   powershell -ExecutionPolicy Bypass -File scripts\download-assets.ps1
