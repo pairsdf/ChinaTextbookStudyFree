@@ -3,7 +3,7 @@
 #
 # 用法:
 #   bash scripts/download-assets.sh              # 下载最新 release
-#   bash scripts/download-assets.sh v1.1.0-assets # 下载指定版本
+#   bash scripts/download-assets.sh v1.4.0-content # 下载指定版本
 #
 # 需要: curl, tar, python3 (处理 Windows 反斜杠路径的 zip)
 

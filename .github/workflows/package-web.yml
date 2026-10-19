@@ -6,7 +6,7 @@ on:
       assets_tag:
         description: "上游资源 Release tag"
         required: true
-        default: "v1.1.0-assets"
+        default: "v1.4.0-content"
       release_tag:
         description: "本仓库发布 tag"
         required: true
@@ -22,13 +22,15 @@ concurrency:
 jobs:
   package:
     runs-on: ubuntu-latest
-    timeout-minutes: 180
+    # 1.4.0 的 build:data 会用 FFmpeg 把全部被引用的 opus 转成 mp3（数万个文件），耗时较长
+    timeout-minutes: 350
 
     steps:
       - name: Free disk space
         run: |
           sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc \
-            /opt/hostedtoolcache/CodeQL || true
+            /opt/hostedtoolcache/CodeQL /usr/local/share/boost \
+            /usr/share/swift /usr/local/.ghcup || true
           df -h
 
       - name: Checkout
@@ -42,6 +44,15 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Ensure FFmpeg with libmp3lame
+        run: |
+          if ! command -v ffmpeg >/dev/null 2>&1 \
+            || ! ffmpeg -hide_banner -encoders 2>/dev/null | grep -q libmp3lame; then
+            sudo apt-get update
+            sudo apt-get install -y --no-install-recommends ffmpeg
+          fi
+          ffmpeg -hide_banner -encoders | grep libmp3lame
 
       - name: Download assets from upstream
         run: bash scripts/download-assets.sh "${{ inputs.assets_tag }}"
