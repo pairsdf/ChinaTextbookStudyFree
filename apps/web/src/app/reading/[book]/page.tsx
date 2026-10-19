@@ -70,7 +70,7 @@ export default async function ReadingListPage({
 
   return (
     <AppShell centerMaxWidth={720}>
-    <main className="min-h-screen bg-bg-soft lg:bg-transparent">
+    <main className="min-h-screen bg-bg lg:bg-transparent">
       <InnerHeader
         backHref={`/book/${bookId}/`}
         title={`${book.textbookName}·课文`}
@@ -95,7 +95,7 @@ export default async function ReadingListPage({
                 <div className="w-full aspect-[2/1] overflow-hidden bg-bg-softer">
                   <img
                     src={cover}
-                    alt={p.title}
+                    alt=""
                     className="w-full h-full object-cover object-top"
                     loading="lazy"
                   />
@@ -106,10 +106,10 @@ export default async function ReadingListPage({
                   <BookOpen className="w-5 h-5" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="text-base font-bold text-ink truncate">
+                  <div className="text-base font-bold text-ink break-words leading-relaxed">
                     {p.title}
                   </div>
-                  <div className="text-xs text-ink-light mt-0.5 truncate">
+                  <div className="text-xs text-ink-light mt-1 leading-relaxed">
                     {p.author ? `${p.author} · ` : ""}
                     {kindLabel ? `${kindLabel} · ` : ""}
                     {p.sentences.length} 句

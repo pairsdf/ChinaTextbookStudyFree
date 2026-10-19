@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { SoundLink } from "@/components/SoundLink";
 import { motion } from "framer-motion";
+import { Download, Upload } from "lucide-react";
 import {
   useProgressStore,
   REPORT_KIND_LABELS,
@@ -20,14 +21,9 @@ import { WeeklyReportCard } from "@/components/WeeklyReportCard";
 import { AppShell } from "@/components/layout/AppShell";
 import {
   ArrowLeft,
-  Lightning,
-  Flame,
-  Star,
-  Crown,
   Snowflake,
-  Bookmark,
-  Gem,
 } from "@/components/icons";
+import { Lightning, Flame, Star, Crown, Bookmark, Gem } from "@/components/LearningIcon";
 import { ThemeModeToggle } from "@/components/ThemeModeToggle";
 import { playSfx } from "@/lib/sfx";
 import { haptic } from "@/lib/haptic";
@@ -59,14 +55,14 @@ export function ProfileClient() {
 
   return (
     <AppShell right={null} centerMaxWidth={920}>
-    <main className="min-h-screen bg-bg-soft lg:bg-transparent relative">
+    <main className="min-h-screen bg-bg lg:bg-transparent relative">
       {/* Header —— 移动端白底 sticky；桌面端简化为 标题 + compact HUD */}
-      <div className="bg-white border-b border-bg-softer sticky top-0 z-10 lg:bg-transparent lg:border-0 lg:static lg:mb-2">
-        <div className="max-w-2xl lg:max-w-4xl mx-auto flex items-center justify-between gap-3 px-4 py-3 lg:px-0 lg:py-2">
+      <div className="bg-white border-b border-bg-softer lg:bg-transparent lg:border-0 lg:static lg:mb-2">
+        <div className="max-w-2xl lg:max-w-4xl mx-auto flex flex-wrap items-center justify-between gap-3 px-4 py-3 lg:px-0 lg:py-2">
           <SoundLink
             href="/"
             aria-label="返回"
-            className="inline-flex items-center justify-center w-10 h-10 rounded-full text-ink-light hover:text-primary hover:bg-bg-soft transition-colors shrink-0 lg:hidden"
+            className="inline-flex items-center justify-center w-11 h-11 rounded-full text-ink-light hover:text-primary hover:bg-bg-soft transition-colors shrink-0 lg:hidden"
           >
             <ArrowLeft className="w-5 h-5" />
           </SoundLink>
@@ -74,35 +70,36 @@ export function ProfileClient() {
             <div className="text-base font-extrabold text-ink truncate">我的主页</div>
           </div>
           <div className="hidden lg:block flex-1" />
-          <div className="shrink-0">
+          <div className="w-auto shrink-0 flex justify-end">
             <StatsBar compact />
           </div>
         </div>
       </div>
 
-      <div className="max-w-2xl lg:max-w-4xl mx-auto px-4 py-8">
-        {/* 📋 每日任务（移动端专属入口；桌面端在首页右栏 RightRail 展示同一组件） */}
-        <div className="lg:hidden mb-6">
-          <DailyQuestsPanel />
-        </div>
-
+      <div className="max-w-2xl lg:max-w-4xl mx-auto px-4 py-5 sm:py-8">
         {/* 顶部：聪聪 + 问候 + 每日目标环 */}
-        <div className="flex items-center gap-6 mb-8">
+        <div className="grid grid-cols-[72px_minmax(0,1fr)] items-center gap-3 mb-6 sm:flex sm:gap-6">
           <motion.div
+            className="row-span-2"
             initial={{ x: -40, opacity: 0 }}
             animate={{ x: 0, opacity: 1 }}
             transition={{ type: "spring", damping: 18 }}
           >
-            <Mascot mood="wave" size={120} />
+            <Mascot mood="wave" size={72} />
           </motion.div>
           <div className="flex-1">
             <div className="text-sm text-ink-light">欢迎回来</div>
-            <div className="text-2xl font-extrabold text-ink">聪明的同学</div>
+            <h1 className="text-2xl font-extrabold text-ink">聪明的同学</h1>
             <div className="text-sm text-ink-light mt-1">
               {hydrated && streak > 0 ? `已连续学习 ${streak} 天` : "开始你的学习之旅"}
             </div>
           </div>
-          <DailyGoalRing size={100} />
+          <div className="col-start-2 sm:ml-auto shrink-0"><DailyGoalRing size={80} /></div>
+        </div>
+
+        {/* 📋 本页未使用右栏，因此所有尺寸均提供每日任务入口 */}
+        <div className="mb-6">
+          <DailyQuestsPanel />
         </div>
 
         {/* 统计卡片网格 */}
@@ -126,7 +123,7 @@ export function ProfileClient() {
             color="text-primary"
           />
           <StatCard
-            icon={<Star className="w-6 h-6 fill-current" />}
+            icon={<Star className="w-6 h-6 " />}
             label="获得星星"
             value={totalStars.toString()}
             color="text-gold"
@@ -139,29 +136,43 @@ export function ProfileClient() {
         <SoundLink
           href="/shop"
           hapticIntensity="medium"
-          className="group flex items-center gap-4 bg-white rounded-3xl border-2 border-secondary/30 p-5 mb-6 lg:mb-0 hover:border-secondary transition-colors"
-          style={{ boxShadow: "0 4px 0 0 #d8b4fe" }}
+          className="group flex items-center gap-4 bg-white ui-card rounded-3xl border-2 border-bg-softer p-5 mb-6 lg:mb-0 hover:border-secondary transition-colors"
+          style={{ boxShadow: "0 4px 0 0 var(--shadow-card-color)" }}
         >
           <div className="w-12 h-12 rounded-2xl bg-secondary/10 text-secondary flex items-center justify-center group-hover:bg-secondary group-hover:text-white transition-colors">
             <Gem className="w-6 h-6" />
           </div>
           <div className="flex-1">
-            <div className="text-base font-extrabold text-ink">美妆商店</div>
+            <div className="text-base font-extrabold text-ink">聪聪衣橱</div>
             <div className="text-sm text-ink-light">
-              累计获得 <span className="font-extrabold text-secondary-dark">{hydrated ? lifetimeGems : 0}</span> 颗宝石 · 去给聪聪换装吧
+              累计获得 <span className="font-extrabold text-gem">{hydrated ? lifetimeGems : 0}</span> 颗宝石 · 去给聪聪换装吧
             </div>
           </div>
           <div className="text-ink-softer text-xl">›</div>
         </SoundLink>
 
-        {/* 本周报告 */}
-        <div className="mb-6 lg:mb-0">
-          {hydrated && <WeeklyReportCard />}
-        </div>
+        {/* 快速入口 */}
+        <SoundLink
+          href="/review"
+          hapticIntensity="medium"
+          className="group flex items-center gap-4 bg-white ui-card rounded-3xl border-2 border-bg-softer p-5 hover:border-primary transition-colors mb-6 lg:mb-0"
+          style={{ boxShadow: "0 4px 0 0 var(--shadow-card-color)" }}
+        >
+          <div className="w-12 h-12 rounded-2xl bg-primary/10 text-primary flex items-center justify-center group-hover:bg-primary group-hover:text-white transition-colors">
+            <Bookmark className="w-6 h-6" />
+          </div>
+          <div className="flex-1">
+            <div className="text-base font-extrabold text-ink">错题本</div>
+            <div className="text-sm text-ink-light">
+              {mistakesCount > 0 ? `${mistakesCount} 道题待复习` : "暂无错题"}
+            </div>
+          </div>
+          <div className="text-ink-softer text-xl">›</div>
+        </SoundLink>
 
         {/* 连胜护盾小卡片 */}
         <section
-          className="bg-white rounded-3xl border-2 border-bg-softer p-5 mb-6 lg:mb-0"
+          className="bg-white ui-card rounded-3xl border-2 border-bg-softer p-5 mb-6 lg:mb-0"
           style={{ boxShadow: "0 4px 0 0 var(--shadow-card-color)" }}
         >
           <div className="text-base font-extrabold text-ink mb-3">连胜护盾</div>
@@ -178,33 +189,9 @@ export function ProfileClient() {
           </div>
         </section>
 
-        {/* 成就墙（占满整行） */}
-        <div className="lg:col-span-2 mb-6 lg:mb-0">
-          {hydrated && <AchievementWall />}
-        </div>
-
-        {/* 快速入口 */}
-        <SoundLink
-          href="/review"
-          hapticIntensity="medium"
-          className="group flex items-center gap-4 bg-white rounded-3xl border-2 border-bg-softer p-5 hover:border-primary transition-colors mb-6 lg:mb-0"
-          style={{ boxShadow: "0 4px 0 0 var(--shadow-card-color)" }}
-        >
-          <div className="w-12 h-12 rounded-2xl bg-primary/10 text-primary flex items-center justify-center group-hover:bg-primary group-hover:text-white transition-colors">
-            <Bookmark className="w-6 h-6" />
-          </div>
-          <div className="flex-1">
-            <div className="text-base font-extrabold text-ink">错题本</div>
-            <div className="text-sm text-ink-light">
-              {mistakesCount > 0 ? `${mistakesCount} 道题待复习` : "暂无错题"}
-            </div>
-          </div>
-          <div className="text-ink-softer text-xl">›</div>
-        </SoundLink>
-
         {/* 外观：免费深色模式三态开关（跟随系统 / 亮 / 暗） */}
         <section
-          className="bg-white rounded-3xl border-2 border-bg-softer p-5 mb-6 lg:mb-0"
+          className="bg-white ui-card rounded-3xl border-2 border-bg-softer p-5 mb-6 lg:mb-0"
           style={{ boxShadow: "0 4px 0 0 var(--shadow-card-color)" }}
         >
           <div className="flex items-center justify-between mb-1">
@@ -216,14 +203,24 @@ export function ProfileClient() {
           <ThemeModeToggle />
         </section>
 
+        {/* 本周报告 */}
+        <div className="lg:col-span-2 mb-6 lg:mb-0">
+          {hydrated && <WeeklyReportCard />}
+        </div>
+
+        {/* 成就墙（占满整行） */}
+        <div className="lg:col-span-2 mb-6 lg:mb-0">
+          {hydrated && <AchievementWall />}
+        </div>
+
         {/* 家长设置：每日学习时间上限（默认关闭，家长自愿启用） */}
         <section
-          className="bg-white rounded-3xl border-2 border-bg-softer p-5"
+          className="bg-white ui-card rounded-3xl border-2 border-bg-softer p-5"
           style={{ boxShadow: "0 4px 0 0 var(--shadow-card-color)" }}
         >
           <div className="flex items-center justify-between mb-1">
             <div className="text-base font-extrabold text-ink">家长设置 · 每日时间上限</div>
-            <span className="text-[10px] text-ink-softer uppercase tracking-wider">
+            <span className="text-xs text-ink-light">
               防沉迷
             </span>
           </div>
@@ -244,9 +241,10 @@ export function ProfileClient() {
                   key={opt.min}
                   type="button"
                   onClick={() => pickLimit(opt.min)}
-                  className={`h-9 px-4 inline-flex items-center rounded-2xl text-sm font-extrabold border-2 transition-colors ${
+                  aria-pressed={active}
+                  className={`min-h-11 px-4 inline-flex items-center rounded-2xl text-sm font-extrabold border-2 transition-colors ${
                     active
-                      ? "bg-primary text-white border-primary"
+                      ? "bg-primary text-[#173408] border-primary"
                       : "bg-white text-ink-light border-bg-softer hover:border-primary/40"
                   }`}
                   style={
@@ -357,12 +355,12 @@ function BackupSection() {
 
   return (
     <section
-      className="bg-white rounded-3xl border-2 border-bg-softer p-5 mt-6 lg:mt-0"
+      className="bg-white ui-card rounded-3xl border-2 border-bg-softer p-5 mt-6 lg:mt-0"
       style={{ boxShadow: "0 4px 0 0 var(--shadow-card-color)" }}
     >
       <div className="flex items-center justify-between mb-1">
         <div className="text-base font-extrabold text-ink">数据 · 存档备份</div>
-        <span className="text-[10px] text-ink-softer uppercase tracking-wider">
+        <span className="text-xs text-ink-light">
           手机电脑互通
         </span>
       </div>
@@ -373,10 +371,9 @@ function BackupSection() {
         <button
           type="button"
           onClick={handleExport}
-          className="h-10 px-4 inline-flex items-center gap-1.5 rounded-2xl text-sm font-extrabold border-2 bg-primary text-white border-primary"
-          style={{ boxShadow: "0 3px 0 0 #58A700" }}
+          className="btn-chunky-primary gap-2"
         >
-          📤 导出存档
+          <Download className="w-4 h-4" aria-hidden /> 导出存档
         </button>
         <button
           type="button"
@@ -385,10 +382,9 @@ function BackupSection() {
             haptic("light");
             fileInputRef.current?.click();
           }}
-          className="h-10 px-4 inline-flex items-center gap-1.5 rounded-2xl text-sm font-extrabold border-2 bg-white text-ink-light border-bg-softer hover:border-primary/40 transition-colors"
-          style={{ boxShadow: "0 2px 0 0 var(--shadow-card-color)" }}
+          className="btn-chunky-ghost gap-2"
         >
-          📥 导入存档
+          <Upload className="w-4 h-4" aria-hidden /> 导入存档
         </button>
         <input
           ref={fileInputRef}
@@ -479,7 +475,7 @@ function ReportsSection() {
 
   return (
     <section
-      className="bg-white rounded-3xl border-2 border-bg-softer p-5"
+      className="bg-white ui-card rounded-3xl border-2 border-bg-softer p-5"
       style={{ boxShadow: "0 4px 0 0 var(--shadow-card-color)" }}
       aria-label="已报告的问题"
     >
@@ -497,12 +493,12 @@ function ReportsSection() {
         )}
       </div>
       <div className="text-xs text-ink-light mb-3">
-        答题时点小旗子 🚩 报告的题目问题都在这里 · 只保存在本机，不会上传
+        答题时报告的题目问题会记录在这里 · 只保存在本机，不会上传
       </div>
 
       {reports.length === 0 ? (
         <div className="text-sm text-ink-softer py-4 text-center">
-          还没有报告过问题，题目都很乖～
+          还没有报告过问题
         </div>
       ) : (
         <ul className="space-y-2">
@@ -554,12 +550,12 @@ function StatCard({
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      className="bg-white rounded-2xl border-2 border-bg-softer p-4"
+      className="ui-card bg-white rounded-2xl border-2 border-bg-softer p-4"
       style={{ boxShadow: "0 4px 0 0 var(--shadow-card-color)" }}
     >
       <div className={`${color}`}>{icon}</div>
       <div className="text-2xl font-extrabold text-ink mt-2 tabular-nums leading-none">{value}</div>
-      <div className="text-[10px] uppercase tracking-wider text-ink-softer font-extrabold mt-1.5">{label}</div>
+      <div className="text-sm text-ink-light font-medium mt-1.5">{label}</div>
     </motion.div>
   );
 }

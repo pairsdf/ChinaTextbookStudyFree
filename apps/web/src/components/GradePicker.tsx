@@ -12,7 +12,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useProgressStore } from "@/store/progress";
 import { Mascot } from "@/components/Mascot";
 import { SpeechBubble } from "@/components/SpeechBubble";
-import { Apple, Sprout, Tree, Butterfly, Rocket, Trophy, type IconProps } from "@/components/icons";
+import { Apple, Sprout, Tree, Butterfly, Rocket, Trophy, type IconProps } from "@/components/LearningIcon";
 import { cn } from "@/lib/cn";
 import { playSfx } from "@/lib/sfx";
 import { haptic } from "@/lib/haptic";
@@ -48,23 +48,23 @@ export function GradePicker() {
   }
 
   return (
-    <div className="fixed inset-0 z-40 bg-bg flex flex-col">
-      <div className="flex-1 flex flex-col items-center justify-start pt-12 px-5 overflow-y-auto pb-32">
+    <main aria-label="选择年级" className="fixed inset-0 z-50 bg-bg flex flex-col">
+      <div className="flex-1 flex flex-col items-center justify-start pt-4 sm:pt-10 px-5 overflow-y-auto pb-6">
         {/* 顶部 mascot + 气泡 */}
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ type: "spring", damping: 18 }}
-          className="flex items-end gap-3 mb-8 max-w-md w-full"
+          className="flex items-end gap-3 mb-5 max-w-md w-full"
         >
-          <Mascot size={96} mood="wave" />
+          <Mascot size={72} mood="wave" />
           <div className="mb-2">
             <SpeechBubble text="你现在读几年级呀？" tone="neutral" />
           </div>
         </motion.div>
 
         {/* 6 个选项 */}
-        <div className="w-full max-w-md flex flex-col gap-3">
+        <div className="w-full max-w-md flex flex-col gap-2.5">
           {OPTIONS.map((opt, i) => {
             const Icon = opt.Icon;
             const selected = picked === opt.grade;
@@ -72,17 +72,17 @@ export function GradePicker() {
               <motion.button
                 key={opt.grade}
                 type="button"
+                aria-pressed={selected}
                 initial={{ opacity: 0, x: 12 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.1 + i * 0.05 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={() => {
+                                onClick={() => {
                   playSfx("tap");
                   haptic("light");
                   setPicked(opt.grade);
                 }}
                 className={cn(
-                  "flex items-center gap-4 px-4 py-4 rounded-2xl border-2 text-left transition-colors select-none",
+                  "option-card flex items-center gap-3 px-4 py-3 rounded-2xl border-2 text-left transition-colors select-none",
                   selected
                     ? "border-secondary bg-secondary/10"
                     : "border-bg-softer bg-white hover:border-secondary/40"
@@ -95,13 +95,13 @@ export function GradePicker() {
               >
                 <div
                   className={cn(
-                    "w-12 h-12 rounded-2xl flex items-center justify-center shrink-0",
-                    selected ? "bg-secondary/15" : "bg-bg-soft"
+                    "w-11 h-11 rounded-xl flex items-center justify-center shrink-0",
+                    "bg-transparent"
                   )}
                 >
                   <Icon
                     className={cn(
-                      "w-7 h-7",
+                      "w-9 h-9",
                       selected ? "text-secondary" : "text-ink-light"
                     )}
                   />
@@ -115,7 +115,7 @@ export function GradePicker() {
                   >
                     {opt.label}
                   </div>
-                  <div className="text-xs text-ink-light mt-0.5">{opt.hint}</div>
+                  <div className="text-sm font-medium text-ink-light mt-0.5">{opt.hint}</div>
                 </div>
               </motion.button>
             );
@@ -124,7 +124,7 @@ export function GradePicker() {
       </div>
 
       {/* 底部 sticky 继续按钮 */}
-      <div className="border-t-2 border-bg-softer bg-white">
+      <div className="shrink-0 border-t-2 border-bg-softer bg-white" style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
         <div className="max-w-md mx-auto px-5 py-4 flex justify-end">
           <AnimatePresence>
             {picked != null && (
@@ -134,7 +134,7 @@ export function GradePicker() {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: 8 }}
                 onClick={handleContinue}
-                className="btn-chunky-primary px-10"
+                className="btn-chunky-primary w-full px-10"
               >
                 继续
               </motion.button>
@@ -144,13 +144,13 @@ export function GradePicker() {
             <button
               type="button"
               disabled
-              className="btn-chunky-disabled px-10"
+              className="btn-chunky-disabled w-full px-10"
             >
               继续
             </button>
           )}
         </div>
       </div>
-    </div>
+    </main>
   );
 }

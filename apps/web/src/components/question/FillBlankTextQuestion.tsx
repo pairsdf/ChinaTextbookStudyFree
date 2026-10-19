@@ -10,6 +10,7 @@
 import { useMemo } from "react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/cn";
+import { QuestionPrompt } from "./QuestionPrompt";
 import { MathText } from "@/components/MathText";
 import { TTSButton } from "@/components/TTSButton";
 import { playSfx } from "@/lib/sfx";
@@ -44,7 +45,7 @@ function buildCandidates(answerStr: string, questionId: number): string[] {
   // === 英文单词答案：干扰项用小写字母（元音/辅音合理配比），不混中文字 ===
   if (/^[a-zA-Z][a-zA-Z\s'-]*$/.test(answerStr.trim())) {
     const answerChars = [
-      ...new Set(answerStr.toLowerCase().replace(/[^a-z]/g, "").split("")),
+      ...new Set(answerStr.toLowerCase().replace(/[^a-z-]/g, "").split("")),
     ];
     const need = Math.max(9, answerChars.length + 4);
     const distractorCount = need - answerChars.length;
@@ -103,7 +104,7 @@ export function FillBlankTextQuestion({
       return;
     }
     // 限制长度，防止误操作
-    if (answer.length >= 10) return;
+    if (answer.length >= Math.max(10, question.answer.trim().length)) return;
     onChange(answer + k);
   }
 
@@ -125,12 +126,7 @@ export function FillBlankTextQuestion({
 
   return (
     <div className="w-full">
-      <div className="flex items-start gap-3 mb-6">
-        <div className="text-xl font-bold text-ink leading-relaxed whitespace-pre-wrap flex-1">
-          <MathText text={question.question} />
-        </div>
-        <TTSButton src={question.audio?.question} className="mt-1" label="朗读题目" />
-      </div>
+      <QuestionPrompt text={question.question} audio={question.audio?.question} locked={locked} />
 
       {/* 答案显示区 */}
       <motion.div
@@ -139,7 +135,7 @@ export function FillBlankTextQuestion({
         animate={{ scale: 1, opacity: 1 }}
         transition={{ type: "spring", damping: 18, stiffness: 260 }}
       >
-        {answer || <span className="text-ink-light/50 text-xl font-bold">点下方汉字作答</span>}
+        {answer ? <span className="min-w-0 break-all">{answer}</span> : <span className="text-ink-light text-xl font-bold">{/[a-zA-Z]/.test(question.answer) ? "点下方字母作答" : "点下方汉字作答"}</span>}
       </motion.div>
 
       {phase === "checked" && !isCorrect && (
@@ -164,9 +160,8 @@ export function FillBlankTextQuestion({
             type="button"
             disabled={disabled}
             onClick={() => handleKey(ch)}
-            whileTap={!disabled ? { scale: 0.96 } : undefined}
             className={cn(
-              "h-14 rounded-2xl text-2xl font-extrabold bg-white border-2 border-bg-softer text-ink",
+              "ui-key h-14 rounded-2xl text-2xl font-extrabold bg-white border-2 border-bg-softer text-ink",
               "hover:border-secondary/60 active:translate-y-[2px] active:shadow-none disabled:opacity-50 disabled:cursor-not-allowed transition-colors",
             )}
             style={{ boxShadow: "0 3px 0 0 var(--shadow-card-color)" }}
@@ -179,9 +174,9 @@ export function FillBlankTextQuestion({
           type="button"
           disabled={disabled}
           onClick={() => handleKey("⌫")}
-          whileTap={!disabled ? { scale: 0.96 } : undefined}
+          aria-label="删除最后一个字"
           className={cn(
-            "h-14 rounded-2xl text-2xl font-extrabold bg-white border-2 border-bg-softer text-danger",
+            "ui-key h-14 rounded-2xl text-2xl font-extrabold bg-white border-2 border-bg-softer text-danger",
             "hover:border-danger/40 active:translate-y-[2px] active:shadow-none disabled:opacity-50 disabled:cursor-not-allowed transition-colors",
           )}
           style={{ boxShadow: "0 3px 0 0 var(--shadow-card-color)" }}

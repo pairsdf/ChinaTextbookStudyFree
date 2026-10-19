@@ -1,8 +1,11 @@
 "use client";
 
+import { saveReviewSession } from "@/lib/reviewSession";
+import { numberSkillForLesson, recordNumberPractice, recordNumberReview, dueNumberSkills, normalizeNumberProgress, type NumberProgress, type NumberPracticeEvidence, type NumberSkill } from '@cstf/core/numberSense';
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
-import type { Question, LessonResult } from "@/types";
+import type { Question, LessonResult, Lesson } from "@/types";
+import { reconcileMistakes } from "@/lib/reviewContent";
 import { DEFAULT_EQUIPPED, getCosmeticById, getStarterCosmetics } from "@/lib/cosmetics";
 import {
   starsFromAccuracy,
@@ -90,7 +93,7 @@ export interface ActiveLessonSession {
   mistakeCount: number;
   combo: number;
   startedAt: number; // ms timestamp
-  // —— 以下为可选扩展字段（错题重排队列持久化），老会话缺省不影响恢复 ——
+  // —— 可选扩展字段；恢复前由 lessonSession 校验课程内容是否一致 ——
   /** 剩余待答题目 id 队列（含错题重排回队尾的顺序） */
   queueIds?: number[];
   /** 已答对（离场）的题目 id */
@@ -99,6 +102,22 @@ export interface ActiveLessonSession {
   maxCombo?: number;
   /** 本次会话已累计 XP（展示用） */
   sessionXp?: number;
+  stage?: "intro" | "practice";
+  introPage?: number;
+  introMode?: "warmup" | "handbook";
+  introCompletedPages?: number[];
+  warmupCounted?: number[];
+  currentId?: number | null;
+  draftAnswer?: string;
+  phase?: "answering" | "checked";
+  checkedCorrect?: boolean | null;
+  attemptedIds?: number[];
+  totalQuestions?: number;
+  hintLevels?: Record<number, number>;
+  independentIds?: number[];
+  visualDraft?: number[];
+  /** Identity of knowledge and questions, excluding audio; prevents stale feedback. */
+  contentKey?: string;
 }
 
 /** 🚩 题目报错类型（E2：小旗子三选） */
@@ -238,6 +257,9 @@ interface ProgressState {
   xpHistory: Record<string, number>;
   /** 每日完成课程数历史 { "YYYY-MM-DD": count } */
   lessonHistory: Record<string, number>;
+  /** Effective learning days, independent of XP and reward eligibility. */
+  studyDays: Record<string, true>;
+  numberSenseProgress: NumberProgress;
   /** 上次领取每日登陆奖励的日期 */
   lastDailyRewardDate: string;
 
@@ -294,12 +316,13 @@ interface ProgressState {
    * 通关记账（原子）：XP/宝石/星级/连胜推进/里程碑/每日任务计数一次完成，
    * 返回结算单 LessonOutcome 供结算页展示。
    */
-  recordLessonComplete: (lessonId: string, lessonTitle: string, accuracy: number, xpGained: number) => LessonOutcome;
+  recordLessonComplete: (lessonId: string, lessonTitle: string, accuracy: number, xpGained: number, evidence?: { questionCount: number; numberSense?: NumberPracticeEvidence }) => LessonOutcome;
   /**
    * 完成一篇阅读（课文听读/跟读/故事）：幂等，首次才发 XP，不发通关宝石、不写课程记录。
    * id 请传 `readingId(kind, rawId)`；传历史格式也不会记错账（内部会归一化）。
    */
   completeReading: (id: string, xp: number) => void;
+  recordNumberSenseReview: (results: { skill: NumberSkill; correct: number; total: number }[]) => boolean;
   /** 某篇阅读是否已完成（内部按规范 id 查表，调用方不用关心 key 格式） */
   isReadingDone: (kind: ReadingKind, rawId: string) => boolean;
   addMistake: (lessonId: string, lessonTitle: string, question: Question) => void;
@@ -318,12 +341,12 @@ interface ProgressState {
    */
   addHeart: (n?: number) => void;
   /**
-   * 复习一轮错题后的补心结算（对齐 iOS content-7）：
-   * 答对 ≥ REVIEW_HEART_MIN_CORRECT 才补 REVIEW_HEART_REWARD 颗，
+   * 复习一轮错题后的补心结算（Web按可用题数调整门槛）：
+   * 首答正确达五题（可用题不足五题则需整轮正确）补 REVIEW_HEART_REWARD 颗，
    * 每天最多一次（lastReviewHeartDate 账本，防止刷同一批错题无限刷心）。
    * 返回实际补到的红心数（0 = 没到门槛 / 今天领过 / 已满心）。
    */
-  awardReviewHeart: (correctCount: number) => number;
+  awardReviewHeart: (correctCount: number, availableCount?: number) => number;
   /** 花 350 宝石立即补满红心（先刷新自然回复；已满不扣费返回 false） */
   buyHeartRefill: () => boolean;
   /** 花 200 宝石购买一枚连胜护盾（持有上限 2，满则返回 false） */
@@ -375,6 +398,7 @@ interface ProgressState {
   // 📚 SRS：复习答题后的更新（core reviewSrsEntry 单一事实源）。
   // 返回 true 表示本次复习让该题「新毕业」（box3 + 答对≥2），供 UI 庆祝。
   reviewMistake: (lessonId: string, questionId: number, isCorrect: boolean) => boolean;
+  refreshMistakeContent: (lessons: Map<string, Lesson | null>) => void;
 
   /**
    * 复习会话结算：每答对一题 +5 XP（走统一记账，含每日目标判定与
@@ -660,6 +684,8 @@ export const useProgressStore = create<ProgressState>()(
       // v5
       xpHistory: {},
       lessonHistory: {},
+      studyDays: {},
+      numberSenseProgress: {},
       lastDailyRewardDate: "",
 
       // v6
@@ -861,6 +887,9 @@ export const useProgressStore = create<ProgressState>()(
               lessonBackdrop: s.equippedBackdrop,
             },
             xpHistory: s.xpHistory,
+            studyDays: s.studyDays,
+            lessonHistory: s.lessonHistory,
+            numberSenseProgress: s.numberSenseProgress,
             leagueTier: s.leagueTier,
             leagueWeekKey: s.leagueWeekKey || undefined,
           },
@@ -868,6 +897,8 @@ export const useProgressStore = create<ProgressState>()(
       },
 
       importBackup: envelope => {
+        saveReviewSession(null);
+        try { sessionStorage.removeItem("csf-number-check-v1"); } catch { /* storage may be unavailable */ }
         const d = envelope.data;
         const today = todayStr();
 
@@ -881,13 +912,16 @@ export const useProgressStore = create<ProgressState>()(
           };
         }
 
-        // 错题本：web 复习需要题面快照，无快照的条目只能丢弃（iOS 导出会带）
+        // Legacy/cross-client backups may omit the snapshot. Keep its identity and
+        // schedule; the review loader resolves current content before any grading.
         const mistakesBank: MistakeEntry[] = [];
         for (const m of d.mistakesBank) {
-          if (!m.question) continue;
           mistakesBank.push({
             lessonId: m.lessonId,
-            question: m.question,
+            question: m.question ? {...m.question,id:m.questionId} : {
+              id:m.questionId,type:"choice",question:"进入复习后同步这道旧题",answer:"",options:[],
+              explanation:"",knowledge_point:"",score:1,difficulty:1,
+            },
             addedAt: new Date().toISOString(),
             box: m.box ?? 1,
             correctCount: m.correctCount ?? 0,
@@ -963,6 +997,8 @@ export const useProgressStore = create<ProgressState>()(
           equippedTheme: safeEquip(d.equipped.uiTheme, DEFAULT_EQUIPPED.uiTheme),
           equippedBackdrop: safeEquip(d.equipped.lessonBackdrop, DEFAULT_EQUIPPED.lessonBackdrop),
           xpHistory: d.xpHistory,
+          studyDays: d.studyDays ?? {},
+          numberSenseProgress: normalizeNumberProgress(d.numberSenseProgress),
           // 今日 XP 从 xpHistory 复原（跨端同日互导也不丢当日目标进度）
           todayXp: d.xpHistory[today] ?? 0,
           lastXpDate: d.xpHistory[today] !== undefined ? today : "",
@@ -972,7 +1008,7 @@ export const useProgressStore = create<ProgressState>()(
           activeLesson: null,
           pendingStreakMilestone: null,
           pendingLeagueResult: null,
-          lessonHistory: {},
+          lessonHistory: d.lessonHistory ?? {},
           dailyQuestDate: "",
           dailyLessons: 0,
           dailyReviews: 0,
@@ -1003,12 +1039,12 @@ export const useProgressStore = create<ProgressState>()(
         }));
       },
 
-      recordLessonComplete: (lessonId, lessonTitle, accuracy, xpGained) => {
+      recordLessonComplete: (lessonId, lessonTitle, accuracy, xpGained, evidence) => {
         // ⚠️ XP 公式（含周末 ×2）由调用方经 @cstf/core xpForLesson 算好传入，
         //    这里不再二次翻倍 —— 保证「结算展示值 == 入账值」。
         // 整个通关记账（XP/宝石/连胜/里程碑/每日任务计数）在一个 set 里
         // 原子完成，返回结算单 —— 对齐 iOS ProgressStore.completeLesson。
-        const stars = starsFromAccuracy(accuracy);
+        const stars = evidence && evidence.questionCount < 3 ? 1 : starsFromAccuracy(accuracy);
         const today = todayStr();
 
         let outcome: LessonOutcome = {
@@ -1114,6 +1150,10 @@ export const useProgressStore = create<ProgressState>()(
             lifetimeGems: state.lifetimeGems + totalGems,
             xpHistory: xpAccount.xpHistory,
             lessonHistory: newLessonHistory,
+            numberSenseProgress: evidence?.numberSense && numberSkillForLesson(lessonId)
+              ? recordNumberPractice(state.numberSenseProgress, numberSkillForLesson(lessonId)!, evidence.numberSense, today)
+              : state.numberSenseProgress,
+            studyDays: pruneHistory({ ...state.studyDays, [today]: true as const }),
             streak: streakAfter,
             lastActiveDate: today,
             streakFreezes,
@@ -1155,6 +1195,7 @@ export const useProgressStore = create<ProgressState>()(
           return {
             ...roll,
             dailyReadings,
+            studyDays: pruneHistory({ ...state.studyDays, [today]: true as const }),
             xp: xpAccount.xp,
             todayXp: xpAccount.todayXp,
             lastXpDate: today,
@@ -1168,6 +1209,22 @@ export const useProgressStore = create<ProgressState>()(
           };
         });
         get().bumpStreakIfNeeded();
+      },
+
+      recordNumberSenseReview: results => {
+        const today = todayStr();
+        const due = dueNumberSkills(get().numberSenseProgress, today);
+        const eligible = results.filter((r, index) => due.includes(r.skill) && results.findIndex(other => other.skill === r.skill) === index && r.total === 2 && Number.isInteger(r.correct) && r.correct >= 0 && r.correct <= r.total);
+        if (!eligible.length) return false;
+        set(state => {
+          const xp = applyXpGain(state, eligible.reduce((n, r) => n + r.correct * REVIEW_XP_PER_CORRECT, 0), today);
+          return { numberSenseProgress: recordNumberReview(state.numberSenseProgress, eligible, today),
+            studyDays: pruneHistory({ ...state.studyDays, [today]: true as const }),
+            xp: xp.xp, todayXp: xp.todayXp, lastXpDate: today, xpHistory: xp.xpHistory,
+            gems: state.gems + xp.goalBonusGems, lifetimeGems: state.lifetimeGems + xp.goalBonusGems };
+        });
+        get().bumpStreakIfNeeded();
+        return true;
       },
 
       isReadingDone: (kind, rawId) =>
@@ -1321,12 +1378,12 @@ export const useProgressStore = create<ProgressState>()(
         }));
       },
 
-      awardReviewHeart: correctCount => {
+      awardReviewHeart: (correctCount, availableCount) => {
         const today = todayStr();
         // 每天一次的账本：不然反复进出同一批错题就能把红心刷成无限
         if (get().lastReviewHeartDate === today) return 0;
         get().refreshHearts();
-        const granted = reviewHeartReward(correctCount, get().hearts);
+        const granted = reviewHeartReward(correctCount, get().hearts, availableCount);
         // 没到门槛 / 已经满心 → 不记账本，今天晚点真赚到了还能补
         if (granted <= 0) return 0;
         get().addHeart(granted);
@@ -1488,6 +1545,10 @@ export const useProgressStore = create<ProgressState>()(
       // 📚 SRS：复习答题后更新错题状态
       // --------------------------------------------------------
 
+      refreshMistakeContent: lessons => {
+        set(state => ({ mistakesBank: reconcileMistakes(state.mistakesBank, lessons) }));
+      },
+
       reviewMistake: (lessonId, questionId, isCorrect) => {
         // core reviewSrsEntry 单一事实源（box3 答对 → 7 天后），消灭内联 fork。
         // 毕业语义：box3 + 答对≥2 → 打 graduated 标记（保留展示，不再进 due 队列）。
@@ -1524,6 +1585,7 @@ export const useProgressStore = create<ProgressState>()(
           return {
             ...roll,
             dailyReviews,
+            studyDays: pruneHistory({ ...state.studyDays, [today]: true as const }),
             xp: xpAccount.xp,
             todayXp: xpAccount.todayXp,
             lastXpDate: today,
@@ -1540,7 +1602,7 @@ export const useProgressStore = create<ProgressState>()(
       // 🗓️ 每日任务
       // --------------------------------------------------------
 
-      todayQuests: () => dailyQuests(todayStr()),
+      todayQuests: () => dailyQuests(todayStr()).map(q => q.kind === "reviewMistakes" ? { ...q, title: `巩固 ${q.target} 次练习或错题` } : q),
 
       questProgress: kind => {
         const state = get();
@@ -1550,7 +1612,7 @@ export const useProgressStore = create<ProgressState>()(
         if (state.dailyQuestDate !== today) return 0;
         switch (kind) {
           case "finishLessons":  return state.dailyLessons;
-          case "reviewMistakes": return state.dailyReviews;
+          case "reviewMistakes": return state.dailyReviews + state.dailyLessons;
           case "readTexts":      return state.dailyReadings;
           default:               return 0;
         }
@@ -1668,7 +1730,8 @@ export const useProgressStore = create<ProgressState>()(
       //            （reading:{kind}:{rawId}，双端同一 key 空间）
       //            + freezesMigrated（护盾补发一次性开关）
       //            + lastReviewHeartDate（复习补心按天账本）
-      version: 12,
+      // v13: reward-independent study days.
+      version: 13,
       migrate: (persistedState: unknown, fromVersion: number) => {
         const state = (persistedState as Partial<ProgressState>) ?? {};
         const starterOwned = Object.fromEntries(
@@ -1771,6 +1834,8 @@ export const useProgressStore = create<ProgressState>()(
           sessionTimeLimitMs: state.sessionTimeLimitMs ?? 0,
           xpHistory: state.xpHistory ?? {},
           lessonHistory,
+          studyDays: state.studyDays ?? {},
+          numberSenseProgress: normalizeNumberProgress(state.numberSenseProgress),
           lastDailyRewardDate: state.lastDailyRewardDate ?? "",
           // v6
           selectedGrade: state.selectedGrade ?? null,

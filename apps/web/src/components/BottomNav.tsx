@@ -11,16 +11,12 @@ import { usePathname } from "next/navigation";
 import Link from "next/link";
 import {
   Home as HomeIcon,
-  HomeFill,
-  Trophy,
-  TrophyFill,
+  Shield as Trophy,
   Bookmark,
-  BookmarkFill,
-  Gem,
+  ShoppingBag,
   User,
-  UserFill,
   type IconProps,
-} from "@/components/icons";
+} from "@/components/LearningIcon";
 import { playSfx } from "@/lib/sfx";
 import { haptic } from "@/lib/haptic";
 import { useProgressStore } from "@/store/progress";
@@ -33,8 +29,6 @@ interface NavItem {
   href: string;
   label: string;
   Icon: ComponentType<IconProps>;
-  /** 激活态的粗填充变体（web-shell-19），视觉重量对齐 iOS */
-  IconActive: ComponentType<IconProps>;
   /** 命中前缀判断 active */
   matchPrefix: string;
   /** 激活态主色 */
@@ -48,46 +42,41 @@ const NAV_ITEMS: NavItem[] = [
     href: "/",
     label: "学习",
     Icon: HomeIcon,
-    IconActive: HomeFill,
     matchPrefix: "/",
-    activeColor: "text-primary",
-    activeBg: "bg-primary/10",
+    activeColor: "text-secondary-dark",
+    activeBg: "bg-secondary/10",
   },
   {
     href: "/league/",
     label: "排行榜",
     Icon: Trophy,
-    IconActive: TrophyFill,
     matchPrefix: "/league",
-    activeColor: "text-gold",
-    activeBg: "bg-gold/15",
+    activeColor: "text-secondary-dark",
+    activeBg: "bg-secondary/10",
   },
   {
     href: "/review/",
     label: "错题本",
     Icon: Bookmark,
-    IconActive: BookmarkFill,
     matchPrefix: "/review",
-    activeColor: "text-warning",
-    activeBg: "bg-warning/15",
+    activeColor: "text-secondary-dark",
+    activeBg: "bg-secondary/10",
   },
   {
     href: "/shop/",
     label: "商店",
-    Icon: Gem,
-    IconActive: Gem,
+    Icon: ShoppingBag,
     matchPrefix: "/shop",
-    activeColor: "text-secondary",
-    activeBg: "bg-secondary/15",
+    activeColor: "text-secondary-dark",
+    activeBg: "bg-secondary/10",
   },
   {
     href: "/profile/",
     label: "我的",
     Icon: User,
-    IconActive: UserFill,
     matchPrefix: "/profile",
     activeColor: "text-secondary-dark",
-    activeBg: "bg-secondary/15",
+    activeBg: "bg-secondary/10",
   },
 ];
 
@@ -111,6 +100,7 @@ export function BottomNav() {
   const [hydrated, setHydrated] = useState(false);
   useEffect(() => setHydrated(true), []);
 
+  const selectedGrade = useProgressStore(s => s.selectedGrade);
   const mistakes = useProgressStore(s => s.mistakesBank);
   const gems = useProgressStore(s => s.gems);
   const ownedCosmetics = useProgressStore(s => s.ownedCosmetics);
@@ -138,7 +128,9 @@ export function BottomNav() {
 
   // 沉浸式路径（课程 / 跳级 / 复习 runner / 阅读器）隐藏底部导航，
   // 否则固定底栏会盖住这些页面底部的「检查 / 继续」按钮。
-  if (isImmersivePath(pathname)) return null;
+  if (!hydrated || (pathname === "/" && selectedGrade == null) || isImmersivePath(pathname)) return null;
+
+  const navItems = NAV_ITEMS;
 
   function getBadge(item: NavItem): { count?: number; dot?: boolean } | null {
     if (item.matchPrefix === "/review" && reviewBadge > 0) return { count: reviewBadge };
@@ -157,20 +149,19 @@ export function BottomNav() {
     <div
       aria-hidden="true"
       className="md:hidden"
-      style={{ height: "calc(3.5rem + max(env(safe-area-inset-bottom), 0px))" }}
+      style={{ height: "calc(4.25rem + max(env(safe-area-inset-bottom), 0px))" }}
     />
     <nav
       className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white border-t-2 border-bg-softer"
       style={{
         paddingBottom: "max(env(safe-area-inset-bottom), 0px)",
-        boxShadow: "0 -2px 12px rgba(0,0,0,0.04)",
       }}
       aria-label="主导航"
     >
-      <div className="grid grid-cols-5 max-w-md mx-auto h-14">
-        {NAV_ITEMS.map(item => {
+      <div className="grid grid-cols-5 max-w-md mx-auto h-[68px]">
+        {navItems.map(item => {
           const active = isActive(pathname, item);
-          const Icon = active ? item.IconActive : item.Icon;
+          const Icon = item.Icon;
           const badge = getBadge(item);
           return (
             <Link
@@ -180,7 +171,7 @@ export function BottomNav() {
                 playSfx("tap");
                 haptic("light");
               }}
-              className="flex flex-col items-center justify-center gap-0.5 select-none relative"
+              className="flex flex-col items-center justify-center gap-1 select-none relative"
               aria-label={
                 badge?.count
                   ? `${item.label}（${badge.count} 项待办）`
@@ -191,12 +182,12 @@ export function BottomNav() {
               aria-current={active ? "page" : undefined}
             >
               <div
-                className={`relative flex items-center justify-center w-10 h-7 rounded-full transition-colors ${
-                  active ? item.activeBg : ""
+                className={`relative flex items-center justify-center w-12 h-9 rounded-xl border-2 transition-colors ${
+                  active ? `${item.activeBg} border-secondary/50` : "border-transparent"
                 }`}
               >
                 <Icon
-                  className={`w-5 h-5 ${
+                  className={`w-8 h-8 ${
                     active ? item.activeColor : "text-ink-softer"
                   }`}
                 />
@@ -215,7 +206,7 @@ export function BottomNav() {
                 ) : null}
               </div>
               <span
-                className={`text-[9px] font-extrabold leading-none ${
+                className={`text-xs font-bold leading-none ${
                   active ? item.activeColor : "text-ink-softer"
                 }`}
               >

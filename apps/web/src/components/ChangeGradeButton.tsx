@@ -23,7 +23,7 @@ export function ChangeGradeButton() {
         setSelectedGrade(null);
         router.push("/");
       }}
-      className="text-xs lg:text-sm font-extrabold text-secondary hover:underline"
+      className="ui-text-button text-secondary hover:underline"
     >
       切换年级
     </button>

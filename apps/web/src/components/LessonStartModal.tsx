@@ -1,4 +1,5 @@
 "use client";
+import { numberSkillForLesson } from "@cstf/core/numberSense";
 
 /**
  * LessonStartModal — 点击路径节点后弹出的课程摘要卡
@@ -81,7 +82,8 @@ export function LessonStartModal({
 
   // ⏱️ 家长时间关怀：达到每日上限后不再开新课；继续已开始的课不受影响
   const timeUp = hydrated && !resume0 && dailyTimeLimitReached();
-  const canStart = hearts > 0 && !timeUp;
+  const isNumberSense = !!numberSkillForLesson(lessonId);
+  const canStart = (hearts > 0 || isNumberSense) && !timeUp;
   const msToNext = nextHeartAt ? Math.max(0, nextHeartAt - now) : 0;
   const estimatedXp =
     questionCount *
@@ -124,14 +126,15 @@ export function LessonStartModal({
   }
 
   return (
-    <Modal open={open} onClose={onClose}>
+    <Modal ariaLabel={title} open={open} onClose={onClose}>
       <div className="flex flex-col items-center text-center">
         <Mascot mood={canStart ? "happy" : "sad"} size={88} />
         <div className="text-[11px] uppercase tracking-wider text-ink-softer mt-4 font-extrabold">
-          {isExam ? `第 ${unitNumber} 单元 · 单元挑战` : `第 ${unitNumber} 单元 · ${kpIndex}/${kpTotal}`}
+          {isExam ? `第 ${unitNumber} 单元 · 单元挑战` : `第 ${unitNumber} 单元 · ${kpIndex + 1}/${kpTotal}`}
         </div>
         <h2 className="text-2xl font-extrabold text-ink mt-2 leading-tight">{title}</h2>
 
+        {questionCount < 3 && !isExam && <p className="mt-3 text-sm text-ink-light">微练习 · 先试一试，之后再用更多情境巩固。这次不评掌握星级。</p>}
         {isExam && (
           <div
             className="mt-3 inline-flex items-center gap-1.5 h-8 px-3 rounded-full text-white text-xs font-extrabold"
@@ -198,7 +201,8 @@ export function LessonStartModal({
           </div>
         )}
 
-        {hearts <= 0 && !timeUp && (
+        {isNumberSense && <p className="mt-3 text-sm text-ink-light">这节课可以放心试，做错不扣红心。</p>}
+        {hearts <= 0 && !isNumberSense && !timeUp && (
           <div className="mt-4 w-full rounded-2xl border-2 border-danger/30 bg-danger/10 px-4 py-3">
             <div className="flex items-center justify-center gap-2 text-danger font-extrabold">
               <Heart className="w-5 h-5" />
