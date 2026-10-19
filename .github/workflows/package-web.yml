@@ -22,8 +22,8 @@ concurrency:
 jobs:
   package:
     runs-on: ubuntu-latest
-    # 1.4.0 的 build:data 会用 FFmpeg 把全部被引用的 opus 转成 mp3（数万个文件），耗时较长
-    timeout-minutes: 350
+    # 用上游预构建产物拼装（下载 + 校验 + 打包），不做编译/转码
+    timeout-minutes: 60
 
     steps:
       - name: Free disk space
@@ -36,29 +36,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-          cache: npm
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Ensure FFmpeg with libmp3lame
-        run: |
-          if ! command -v ffmpeg >/dev/null 2>&1 \
-            || ! ffmpeg -hide_banner -encoders 2>/dev/null | grep -q libmp3lame; then
-            sudo apt-get update
-            sudo apt-get install -y --no-install-recommends ffmpeg
-          fi
-          ffmpeg -hide_banner -encoders | grep libmp3lame
-
-      - name: Download assets from upstream
-        run: bash scripts/download-assets.sh "${{ inputs.assets_tag }}"
-
-      - name: Build and package
-        run: bash scripts/package-web-deploy.sh
+      - name: Assemble and package from upstream prebuilt assets
+        run: bash scripts/package-web-deploy.sh "${{ inputs.assets_tag }}"
 
       - name: Upload workflow artifact (tar.gz)
         uses: actions/upload-artifact@v4
